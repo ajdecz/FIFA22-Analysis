@@ -1,4 +1,4 @@
-# FIFA22 Player Market Value — Applied Regression (STAT 408 Final Project)
+# FIFA22 Player Market Value: Applied Regression
 
 Modeling in-game FIFA22 player market value using multiple linear regression, with a focus on data cleaning, diagnostics, transformations, and interpretability.
 
@@ -40,7 +40,7 @@ FIFA player “Value” is heavily right-skewed and influenced by a mix of techn
 - Reported multiplicative effects on the original-value scale (because the response is log-transformed).
 - Computed **95% confidence intervals** for coefficients in the final model.
 
-## Key Results (high level)
+## Key Results
 - Log-transform dramatically improved fit and diagnostics.
 - Final stepwise model explained **~95.8%** of variability in log(Value) (Adj. R² ≈ 0.958).
 - Strongest relationships:
