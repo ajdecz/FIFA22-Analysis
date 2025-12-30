@@ -1,0 +1,128 @@
+---
+title: "FIFA22 Project\nAugust Decz\nSTAT 408"
+format: 
+  html:
+    self-contained: true
+    embed-resources: true
+editor: visual
+execute: 
+  echo: true
+  include: true
+---
+
+1.  Loading in the dataset
+
+```{r}
+library(tidyverse)
+fifa <- read.csv('../data/FIFA22_official_data.csv')
+head(fifa)
+names(fifa)
+```
+
+```{r}
+# CLEAN DATA
+fifa_clean <- fifa %>% 
+  dplyr::select(Value, Age, Overall, Preferred.Foot, Skill.Moves, Height, Weight,
+         Crossing, Finishing, HeadingAccuracy, ShortPassing, Volleys,
+         Dribbling, Curve, FKAccuracy, LongPassing, BallControl,
+         Acceleration, SprintSpeed, Agility, Reactions, Balance,
+         ShotPower, Jumping, Stamina, Strength, LongShots, Aggression,
+         Interceptions, Positioning, Vision, Penalties, Composure,
+         StandingTackle, SlidingTackle, DefensiveAwareness) %>% 
+  # converting value strings to numerics and removing unit symbols (note: still in euros... virtual money so does not really matter)
+  mutate(
+    Value = gsub("€", "", Value),
+    Value = case_when(
+      grepl("M", Value) ~ as.numeric(gsub("M", "", Value)) * 1e6,
+      grepl("K", Value) ~ as.numeric(gsub("K", "", Value)) * 1e3,
+      TRUE ~ as.numeric(Value)
+    ),
+    Height = as.numeric(gsub("cm", "", Height)),
+    Weight = as.numeric(gsub("kg", "", Weight))
+  ) %>%
+  filter(is.finite(Value), Value > 0) %>% 
+  na.omit()
+```
+
+Summary Stats and Visual Exploration
+
+```{r}
+summary(fifa_clean$Value)
+var(fifa_clean$Value)
+```
+
+now lets see if it runs the model
+
+```{r}
+mod_initial <- lm(Value ~ ., fifa_clean)
+summary(mod_initial)
+plot(mod_initial,1)
+plot(mod_initial,2)
+```
+
+Extreme heteroscedasticity and normality clearly violated.
+
+lets try a box cox to see what kind of transformation we should do.
+
+$\lambda \approx -0.067$
+
+```{r}
+library(MASS)
+bc <- boxcox(mod_initial)
+lambda <- bc$x[which.max(bc$y)]
+lambda
+```
+
+```{r}
+# log transformation
+fifa_clean <- fifa_clean %>%
+  mutate(Value_bc = log(Value))
+```
+
+refitting
+
+```{r}
+mod_bc <- lm(Value_bc ~ ., data = fifa_clean %>% dplyr::select(-Value))
+
+# Diagnostic plots
+plot(mod_bc, 1)
+plot(mod_bc, 2)
+summary(mod_bc)
+```
+
+we have chosen mod_bc (log transformation as our model) bc the adjusted rsquared is much better now
+
+```{r}
+diff_norm_log <- summary(mod_bc)$adj.r.squared - summary(mod_initial)$adj.r.squared
+diff_norm_log * 100
+```
+
+```{r}
+library(car)
+vif(mod_bc)
+```
+
+stepwise model because we have multicollinearity
+
+```{r}
+step_mod <- step(mod_bc, method = 'both', trace = 0)
+summary(step_mod)
+```
+
+```{r}
+vif(step_mod)
+```
+
+```{r}
+confint(step_mod)
+```
+
+```{r}
+ggplot(fifa_clean, aes(x = Value)) +
+  geom_histogram(bins = 50, fill = "steelblue") +
+  scale_x_continuous(labels = scales::comma) +
+  labs(title = "Distribution of Player Market Value (Raw)",
+       x = "Market Value (€)", y = "Count")
+
+
+```
